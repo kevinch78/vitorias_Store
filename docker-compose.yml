@@ -1,0 +1,80 @@
+services:
+  # ------------------------------------------------------
+  # 1. Base de Datos Relacional PostgreSQL
+  # ------------------------------------------------------
+  postgres:
+    image: postgres:16-alpine
+    container_name: victoria_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-victoria_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-victoria_password}
+      POSTGRES_DB: ${POSTGRES_DB:-victoria_db}
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-victoria_user} -d ${POSTGRES_DB:-victoria_db}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - victoria_network
+
+  # ------------------------------------------------------
+  # 2. Backend API (NestJS + Prisma + Multer/Sharp)
+  # ------------------------------------------------------
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: victoria_backend
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      PORT: 3000
+      NODE_ENV: production
+      DATABASE_URL: postgresql://${POSTGRES_USER:-victoria_user}:${POSTGRES_PASSWORD:-victoria_password}@postgres:5432/${POSTGRES_DB:-victoria_db}?schema=public
+      JWT_SECRET: ${JWT_SECRET:-victoria_super_secret_jwt_key_prod_2026}
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost,http://localhost:80,http://localhost:5173,http://127.0.0.1}
+      UPLOAD_DIR: uploads
+      RUN_SEED: ${RUN_SEED:-true}
+    ports:
+      - "3000:3000"
+    volumes:
+      - backend_uploads:/app/uploads
+    networks:
+      - victoria_network
+
+  # ------------------------------------------------------
+  # 3. Frontend Web Client (Vite + React + Nginx Alpine)
+  # ------------------------------------------------------
+  frontend:
+    build:
+      context: ./EccormceDeportivo
+      dockerfile: Dockerfile
+      args:
+        VITE_API_URL: ${VITE_API_URL:-http://localhost:3000/api/v1}
+        VITE_UPLOADS_URL: ${VITE_UPLOADS_URL:-http://localhost:3000}
+    container_name: victoria_frontend
+    restart: unless-stopped
+    depends_on:
+      - backend
+    ports:
+      - "80:80"
+    networks:
+      - victoria_network
+
+volumes:
+  postgres_data:
+    name: victoria_postgres_data
+  backend_uploads:
+    name: victoria_backend_uploads
+
+networks:
+  victoria_network:
+    name: victoria_network
+    driver: bridge

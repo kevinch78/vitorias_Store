@@ -1,0 +1,95 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Rol {
+  USER
+  ADMIN
+}
+
+enum EstadoPedido {
+  PENDIENTE
+  EN_PREPARACION
+  PAGADO
+  ENVIADO
+  ENTREGADO
+  CANCELADO
+}
+
+model Usuario {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  password  String
+  nombre    String?
+  rol       Rol      @default(USER)
+  pedidos   Pedido[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Categoria {
+  id        String     @id @default(uuid())
+  nombre    String     @unique
+  slug      String     @unique
+  productos Producto[]
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+}
+
+model Producto {
+  id          String          @id @default(uuid())
+  nombre      String
+  slug        String          @unique
+  descripcion String?
+  precio      Float
+  precioAntes Float?
+  stock       Int             @default(0)
+  imagen      String?
+  activo          Boolean         @default(true)
+  badges          String[]
+  beneficios      String[]        @default([])
+  especificaciones Json?
+  modoUso         String?         @db.Text
+  categoriaId String
+  categoria   Categoria       @relation(fields: [categoriaId], references: [id])
+  detalles    DetallePedido[]
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+}
+
+model Pedido {
+  id            String          @id @default(uuid())
+  codigo        String          @unique
+  usuarioId     String?
+  usuario       Usuario?        @relation(fields: [usuarioId], references: [id])
+  nombreCliente String
+  telefono      String
+  direccion     String
+  ciudad        String
+  metodoEnvio   String
+  metodoPago    String
+  notas         String?
+  total         Float
+  estado        EstadoPedido    @default(PENDIENTE)
+  comprobantePago String?
+  detalles      DetallePedido[]
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+}
+
+model DetallePedido {
+  id         String   @id @default(uuid())
+  pedidoId   String
+  pedido     Pedido   @relation(fields: [pedidoId], references: [id])
+  productoId String
+  producto   Producto @relation(fields: [productoId], references: [id])
+  cantidad   Int
+  precio     Float
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+}

@@ -1,0 +1,53 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: victoria_postgres_prod
+    restart: always
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-victoria_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-victoria_password}
+      POSTGRES_DB: ${POSTGRES_DB:-victoria_db}
+    ports:
+      - "${POSTGRES_PORT:-5433}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-victoria_user} -d ${POSTGRES_DB:-victoria_db}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - victoria_internal
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: victoria_api_prod
+    restart: always
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      PORT: 3000
+      NODE_ENV: production
+      DATABASE_URL: postgresql://${POSTGRES_USER:-victoria_user}:${POSTGRES_PASSWORD:-victoria_password}@postgres:5432/${POSTGRES_DB:-victoria_db}?schema=public
+      JWT_SECRET: ${JWT_SECRET:-genera-un-secreto-seguro-aqui}
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:5173,http://localhost:80,http://localhost}
+      UPLOAD_DIR: uploads
+      RUN_SEED: ${RUN_SEED:-true}
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./uploads:/app/uploads
+    networks:
+      - victoria_internal
+
+volumes:
+  postgres_data:
+    name: victoria_postgres_prod_data
+
+networks:
+  victoria_internal:
+    name: victoria_internal_network
+    driver: bridge

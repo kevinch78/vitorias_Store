@@ -1,0 +1,61 @@
+# ==========================================
+# Render Blueprint Specification (Infrastructure as Code)
+# Victoria Performance Nutrition
+# ==========================================
+
+services:
+  # ------------------------------------------------------
+  # 1. API Backend (NestJS + Prisma + Docker)
+  # ------------------------------------------------------
+  - type: web
+    name: victoria-backend-api
+    runtime: docker
+    dockerContext: ./backend
+    dockerfilePath: ./backend/Dockerfile
+    plan: free
+    region: oregon
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 3000
+      - key: DATABASE_URL
+        fromDatabase:
+          name: victoria-db
+          property: connectionString
+      - key: JWT_SECRET
+        generateValue: true
+      - key: CORS_ORIGINS
+        value: "*"
+      - key: UPLOAD_DIR
+        value: uploads
+      - key: RUN_SEED
+        value: "true"
+
+  # ------------------------------------------------------
+  # 2. Frontend Web (Vite + React SPA Static Site)
+  # ------------------------------------------------------
+  - type: web
+    name: victoria-frontend-web
+    runtime: static
+    rootDir: ./EccormceDeportivo
+    buildCommand: npm install && npm run build
+    staticPublishPath: ./dist
+    plan: free
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
+    envVars:
+      - key: VITE_STORE_WHATSAPP_NUMBER
+        value: "573235087561"
+
+databases:
+  # ------------------------------------------------------
+  # 3. Base de Datos PostgreSQL Administrada
+  # ------------------------------------------------------
+  - name: victoria-db
+    databaseName: victoria_db
+    user: victoria_user
+    plan: free
+    region: oregon
