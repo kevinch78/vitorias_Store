@@ -1,10 +1,16 @@
 import axios from 'axios';
 import { useAuthStore } from '../store/useAuthStore';
 
-const rawApiUrl = import.meta.env.VITE_API_URL || 'https://victoria-backend-api.onrender.com/api/v1';
+let rawApiUrl = import.meta.env.VITE_API_URL || 'https://victoria-backend-api.onrender.com/api/v1';
+
+// Si Render inyectó el hostname interno sin TLD público (ej. 'victoria-backend-api')
+if (rawApiUrl === 'victoria-backend-api' || !rawApiUrl.includes('.')) {
+  rawApiUrl = 'https://victoria-backend-api.onrender.com/api/v1';
+}
+
 const formattedApiUrl = rawApiUrl.startsWith('http')
   ? (rawApiUrl.endsWith('/api/v1') ? rawApiUrl : `${rawApiUrl.replace(/\/+$/, '')}/api/v1`)
-  : `https://${rawApiUrl.replace(/\/+$/, '')}/api/v1`;
+  : (rawApiUrl.includes('.') ? `https://${rawApiUrl.replace(/\/+$/, '')}/api/v1` : `https://${rawApiUrl}.onrender.com/api/v1`);
 
 export const api = axios.create({
   baseURL: formattedApiUrl,

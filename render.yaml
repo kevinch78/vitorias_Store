@@ -49,15 +49,9 @@ services:
       - key: VITE_STORE_WHATSAPP_NUMBER
         value: "573235087561"
       - key: VITE_API_URL
-        fromService:
-          type: web
-          name: victoria-backend-api
-          property: host
+        value: "https://victoria-backend-api.onrender.com/api/v1"
       - key: VITE_UPLOADS_URL
-        fromService:
-          type: web
-          name: victoria-backend-api
-          property: host
+        value: "https://victoria-backend-api.onrender.com"
 
 databases:
   # ------------------------------------------------------
