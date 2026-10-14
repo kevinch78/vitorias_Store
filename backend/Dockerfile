@@ -7,8 +7,8 @@ FROM node:20-alpine AS builder
 
 WORKDIR /app
 
-# Instalar dependencias necesarias para compilar módulos nativos (bcrypt, sharp)
-RUN apk add --no-cache libc6-compat python3 make g++
+# Instalar dependencias necesarias para compilar módulos nativos (bcrypt, sharp) y OpenSSL para Prisma
+RUN apk add --no-cache libc6-compat python3 make g++ openssl
 
 # Copiar manifiestos de dependencias y esquema Prisma
 COPY package*.json ./
@@ -36,8 +36,8 @@ FROM node:20-alpine AS runner
 
 WORKDIR /app
 
-# Instalar dumb-init para correcto manejo de señales PID 1 y libc6-compat
-RUN apk add --no-cache dumb-init libc6-compat
+# Instalar dumb-init para correcto manejo de señales PID 1, libc6-compat y OpenSSL para Prisma engine
+RUN apk add --no-cache dumb-init libc6-compat openssl
 
 ENV NODE_ENV=production
 ENV PORT=3000
