@@ -1,14 +1,21 @@
 # ==========================================
 # Multi-stage Dockerfile for Victoria Backend (NestJS + Prisma)
+# Built on Debian Bookworm Slim for 100% glibc + OpenSSL stability
 # ==========================================
 
 # 1. Base / Dependencies & Build stage
-FROM node:20-alpine AS builder
+FROM node:20-slim AS builder
 
 WORKDIR /app
 
-# Instalar dependencias necesarias para compilar módulos nativos (bcrypt, sharp) y OpenSSL para Prisma
-RUN apk add --no-cache libc6-compat python3 make g++ openssl
+# Instalar OpenSSL, certificados y herramientas requeridas para compilar módulos nativos
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    openssl \
+    ca-certificates \
+    python3 \
+    make \
+    g++ \
+    && rm -rf /var/lib/apt/lists/*
 
 # Copiar manifiestos de dependencias y esquema Prisma
 COPY package*.json ./
@@ -32,34 +39,35 @@ RUN npm prune --omit=dev
 # ==========================================
 # 2. Production Runner stage
 # ==========================================
-FROM node:20-alpine AS runner
+FROM node:20-slim AS runner
 
 WORKDIR /app
 
-# Instalar dumb-init para correcto manejo de señales PID 1, libc6-compat y OpenSSL para Prisma engine
-RUN apk add --no-cache dumb-init libc6-compat openssl
+# Instalar dumb-init para correcto manejo de señales PID 1, OpenSSL y certificados
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    dumb-init \
+    openssl \
+    ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
 
 ENV NODE_ENV=production
 ENV PORT=3000
 
-# Crear usuario sin privilegios para seguridad y blindaje
-RUN addgroup -g 1001 -S nodejs && \
-    adduser -S nodejs -u 1001 -G nodejs
-
+# En Debian node:20-slim el usuario 'node' (uid: 1000) ya existe con su /home/node
 # Crear directorio de subida de archivos y asignar permisos
-RUN mkdir -p /app/uploads && chown -R nodejs:nodejs /app/uploads
+RUN mkdir -p /app/uploads && chown -R node:node /app
 
 # Copiar script de inicialización y dar permisos
-COPY --chown=nodejs:nodejs docker-entrypoint.sh ./
+COPY --chown=node:node docker-entrypoint.sh ./
 RUN chmod +x docker-entrypoint.sh
 
 # Copiar artefactos de compilación y dependencias de producción
-COPY --from=builder --chown=nodejs:nodejs /app/node_modules ./node_modules
-COPY --from=builder --chown=nodejs:nodejs /app/dist ./dist
-COPY --from=builder --chown=nodejs:nodejs /app/prisma ./prisma
-COPY --from=builder --chown=nodejs:nodejs /app/package.json ./package.json
+COPY --from=builder --chown=node:node /app/node_modules ./node_modules
+COPY --from=builder --chown=node:node /app/dist ./dist
+COPY --from=builder --chown=node:node /app/prisma ./prisma
+COPY --from=builder --chown=node:node /app/package.json ./package.json
 
-USER nodejs
+USER node
 
 EXPOSE 3000
 
