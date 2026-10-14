@@ -42,4 +42,10 @@ fi
 
 # 3. Lanzar servidor NestJS
 echo "==> [3/3] Lanzando servidor NestJS en producción..."
-exec "$@"
+if [ -f "dist/src/main.js" ]; then
+  exec node dist/src/main.js
+elif [ -f "dist/main.js" ]; then
+  exec node dist/main.js
+else
+  exec "$@"
+fi

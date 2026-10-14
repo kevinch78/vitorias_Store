@@ -30,7 +30,7 @@ services:
       - key: UPLOAD_DIR
         value: uploads
       - key: RUN_SEED
-        value: "true"
+        value: "false"
 
   # ------------------------------------------------------
   # 2. Frontend Web (Vite + React SPA Static Site)
