@@ -1,7 +1,7 @@
 import axios from 'axios';
 import { useAuthStore } from '../store/useAuthStore';
 
-const rawApiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000/api/v1';
+const rawApiUrl = import.meta.env.VITE_API_URL || 'https://victoria-backend-api.onrender.com/api/v1';
 const formattedApiUrl = rawApiUrl.startsWith('http')
   ? (rawApiUrl.endsWith('/api/v1') ? rawApiUrl : `${rawApiUrl.replace(/\/+$/, '')}/api/v1`)
   : `https://${rawApiUrl.replace(/\/+$/, '')}/api/v1`;
