@@ -9,8 +9,12 @@ const mapProduct = (data: any): Product => ({
 });
 
 export const productService = {
-  getProducts: async (params?: { search?: string; categoriaSlug?: string; orden?: string; limit?: number; page?: number }) => {
+  getProducts: async (params?: { search?: string; categoriaSlug?: string; orden?: string; limit?: number; page?: number; activo?: string }) => {
     const { data } = await api.get('/productos', { params });
+    return { ...data, data: data.data.map(mapProduct) };
+  },
+  getAdminProducts: async (params?: { search?: string; categoriaSlug?: string; orden?: string; limit?: number; page?: number; activo?: string }) => {
+    const { data } = await api.get('/admin/productos', { params: { limit: 100, activo: 'all', ...params } });
     return { ...data, data: data.data.map(mapProduct) };
   },
   getProductBySlug: async (slug: string) => {

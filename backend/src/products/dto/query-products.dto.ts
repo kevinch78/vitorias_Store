@@ -29,4 +29,8 @@ export class QueryProductsDto {
   @Min(1)
   @Type(() => Number)
   page?: number;
+
+  @IsOptional()
+  @IsString()
+  activo?: string;
 }

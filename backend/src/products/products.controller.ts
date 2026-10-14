@@ -15,6 +15,16 @@ export class ProductsController {
     return this.productsService.findAll(query);
   }
 
+  @Get(['admin/productos', 'admin/products'])
+  @UseGuards(JwtAuthGuard)
+  findAllAdmin(@Query() query: QueryProductsDto) {
+    return this.productsService.findAll({
+      limit: 100,
+      ...query,
+      activo: query.activo || 'all',
+    });
+  }
+
   @Get(['productos/:slug', 'products/:slug'])
   findOne(@Param('slug') slug: string) {
     return this.productsService.findOneBySlug(slug);

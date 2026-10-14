@@ -24,6 +24,7 @@ export const AdminProductsPage: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [categoryFilter, setCategoryFilter] = useState<string>('TODOS');
   const [stockFilter, setStockFilter] = useState<'TODOS' | 'BAJO' | 'AGOTADO'>('TODOS');
+  const [activeFilter, setActiveFilter] = useState<'TODOS' | 'ACTIVOS' | 'INACTIVOS'>('TODOS');
   const [isLoading, setIsLoading] = useState(false);
 
   const defaultFormState = {
@@ -47,10 +48,16 @@ export const AdminProductsPage: React.FC = () => {
   const fetchProducts = async () => {
     try {
       setIsLoading(true);
-      const data = await productService.getProducts();
+      // Cargar todos los productos (activos e inactivos) para control total del admin
+      const data = await productService.getAdminProducts({ activo: 'all' });
       setProducts(data.data);
     } catch (error) {
-      toast.error('Error al cargar productos');
+      try {
+        const fallback = await productService.getProducts({ activo: 'all', limit: 100 });
+        setProducts(fallback.data);
+      } catch {
+        toast.error('Error al cargar productos');
+      }
     } finally {
       setIsLoading(false);
     }
@@ -154,10 +161,10 @@ export const AdminProductsPage: React.FC = () => {
   const toggleProductActive = async (id: string, activo: boolean) => {
     try {
       await productService.updateProduct(id, { activo: !activo });
-      toast.success(activo ? 'Producto desactivado' : 'Producto activado');
+      toast.success(!activo ? 'Producto activado (visible en tienda)' : 'Producto pausado / desactivado de la tienda');
       fetchProducts();
     } catch (error) {
-      toast.error('Error al actualizar estado');
+      toast.error('Error al actualizar estado del producto');
     }
   };
 
@@ -165,11 +172,12 @@ export const AdminProductsPage: React.FC = () => {
   const metrics = useMemo(() => {
     const total = products.length;
     const active = products.filter(p => p.activo).length;
+    const inactive = products.filter(p => !p.activo).length;
     const lowStock = products.filter(p => p.stock > 0 && p.stock <= 5).length;
     const outOfStock = products.filter(p => p.stock === 0).length;
     const inventoryValuation = products.reduce((acc, p) => acc + (p.precio * p.stock), 0);
 
-    return { total, active, lowStock, outOfStock, inventoryValuation };
+    return { total, active, inactive, lowStock, outOfStock, inventoryValuation };
   }, [products]);
 
   // Filtering
@@ -182,15 +190,20 @@ export const AdminProductsPage: React.FC = () => {
         stockFilter === 'BAJO' ? (product.stock > 0 && product.stock <= 5) :
         product.stock === 0;
 
+      const matchesActive = 
+        activeFilter === 'TODOS' ? true :
+        activeFilter === 'ACTIVOS' ? product.activo === true :
+        product.activo === false;
+
       const term = searchTerm.toLowerCase().trim();
       const matchesSearch = !term || 
         product.nombre.toLowerCase().includes(term) ||
         (product.categoria && product.categoria.toLowerCase().includes(term)) ||
         (product.badges && product.badges.some(b => b.toLowerCase().includes(term)));
 
-      return matchesCategory && matchesStock && matchesSearch;
+      return matchesCategory && matchesStock && matchesActive && matchesSearch;
     });
-  }, [products, categoryFilter, stockFilter, searchTerm]);
+  }, [products, categoryFilter, stockFilter, activeFilter, searchTerm]);
 
   return (
     <div className="space-y-6">
@@ -211,9 +224,21 @@ export const AdminProductsPage: React.FC = () => {
           <p className="text-xl sm:text-2xl font-black font-mono text-white tracking-tight">
             {metrics.total}
           </p>
-          <div className="mt-2 flex items-center gap-1.5 text-[10px] text-gray-500 font-mono">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
-            {metrics.active} activos en tienda
+          <div className="mt-2 flex items-center gap-2 text-[10px] text-gray-500 font-mono">
+            <span className="flex items-center gap-1 text-emerald-400">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+              {metrics.active} activos
+            </span>
+            {metrics.inactive > 0 && (
+              <button 
+                onClick={() => setActiveFilter('INACTIVOS')} 
+                className="flex items-center gap-1 text-rose-400 hover:underline cursor-pointer"
+                title="Filtrar productos inactivos"
+              >
+                <span className="w-1.5 h-1.5 rounded-full bg-rose-400" />
+                {metrics.inactive} inactivos
+              </button>
+            )}
           </div>
         </div>
 
@@ -340,33 +365,64 @@ export const AdminProductsPage: React.FC = () => {
             })}
           </div>
 
-          {/* Filtro de Stock */}
-          <div className="flex items-center gap-1.5">
-            <span className="text-[10px] font-mono uppercase text-gray-500 hidden sm:inline">Stock:</span>
-            <button
-              onClick={() => setStockFilter('TODOS')}
-              className={`px-2.5 py-1 text-[11px] font-bold rounded-lg border transition-all ${
-                stockFilter === 'TODOS' ? 'bg-white/10 border-white/20 text-white' : 'text-gray-500 border-transparent hover:text-gray-300'
-              }`}
-            >
-              Todos
-            </button>
-            <button
-              onClick={() => setStockFilter('BAJO')}
-              className={`px-2.5 py-1 text-[11px] font-bold rounded-lg border transition-all ${
-                stockFilter === 'BAJO' ? 'bg-amber-500/20 border-amber-500/40 text-amber-400' : 'text-gray-500 border-transparent hover:text-amber-400'
-              }`}
-            >
-              Bajo Stock (≤5)
-            </button>
-            <button
-              onClick={() => setStockFilter('AGOTADO')}
-              className={`px-2.5 py-1 text-[11px] font-bold rounded-lg border transition-all ${
-                stockFilter === 'AGOTADO' ? 'bg-rose-500/20 border-rose-500/40 text-rose-400' : 'text-gray-500 border-transparent hover:text-rose-400'
-              }`}
-            >
-              Agotados
-            </button>
+          <div className="flex flex-wrap items-center gap-3">
+            {/* Filtro de Visibilidad / Estado */}
+            <div className="flex items-center gap-1.5">
+              <span className="text-[10px] font-mono uppercase text-gray-500 hidden sm:inline">Estado:</span>
+              <button
+                onClick={() => setActiveFilter('TODOS')}
+                className={`px-2.5 py-1 text-[11px] font-bold rounded-lg border transition-all ${
+                  activeFilter === 'TODOS' ? 'bg-white/10 border-white/20 text-white' : 'text-gray-500 border-transparent hover:text-gray-300'
+                }`}
+              >
+                Todos ({metrics.total})
+              </button>
+              <button
+                onClick={() => setActiveFilter('ACTIVOS')}
+                className={`px-2.5 py-1 text-[11px] font-bold rounded-lg border transition-all ${
+                  activeFilter === 'ACTIVOS' ? 'bg-emerald-500/20 border-emerald-500/40 text-emerald-400' : 'text-gray-500 border-transparent hover:text-emerald-400'
+                }`}
+              >
+                Activos ({metrics.active})
+              </button>
+              <button
+                onClick={() => setActiveFilter('INACTIVOS')}
+                className={`px-2.5 py-1 text-[11px] font-bold rounded-lg border transition-all ${
+                  activeFilter === 'INACTIVOS' ? 'bg-rose-500/20 border-rose-500/40 text-rose-400' : 'text-gray-500 border-transparent hover:text-rose-400'
+                }`}
+              >
+                Inactivos ({metrics.inactive})
+              </button>
+            </div>
+
+            {/* Filtro de Stock */}
+            <div className="flex items-center gap-1.5">
+              <span className="text-[10px] font-mono uppercase text-gray-500 hidden sm:inline">Stock:</span>
+              <button
+                onClick={() => setStockFilter('TODOS')}
+                className={`px-2.5 py-1 text-[11px] font-bold rounded-lg border transition-all ${
+                  stockFilter === 'TODOS' ? 'bg-white/10 border-white/20 text-white' : 'text-gray-500 border-transparent hover:text-gray-300'
+                }`}
+              >
+                Todos
+              </button>
+              <button
+                onClick={() => setStockFilter('BAJO')}
+                className={`px-2.5 py-1 text-[11px] font-bold rounded-lg border transition-all ${
+                  stockFilter === 'BAJO' ? 'bg-amber-500/20 border-amber-500/40 text-amber-400' : 'text-gray-500 border-transparent hover:text-amber-400'
+                }`}
+              >
+                Bajo (≤5)
+              </button>
+              <button
+                onClick={() => setStockFilter('AGOTADO')}
+                className={`px-2.5 py-1 text-[11px] font-bold rounded-lg border transition-all ${
+                  stockFilter === 'AGOTADO' ? 'bg-rose-500/20 border-rose-500/40 text-rose-400' : 'text-gray-500 border-transparent hover:text-rose-400'
+                }`}
+              >
+                Agotados
+              </button>
+            </div>
           </div>
         </div>
       </div>

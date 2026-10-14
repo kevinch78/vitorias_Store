@@ -81,10 +81,20 @@ export class ProductsService {
   }
 
   async findAll(query: QueryProductsDto) {
-    const { search, categoriaSlug, orden, limit = 10, page = 1 } = query;
+    const { search, categoriaSlug, orden, limit = 50, page = 1, activo } = query;
     const skip = (page - 1) * limit;
 
-    const where: any = { activo: true };
+    const where: any = {};
+
+    // Si activo === 'all', no filtramos para permitir al admin ver productos activos e inactivos
+    if (activo === 'all') {
+      // Sin filtro de activo
+    } else if (activo === 'false' || activo === '0') {
+      where.activo = false;
+    } else {
+      // Por defecto para la tienda pública: solo productos activos
+      where.activo = true;
+    }
 
     if (search) {
       where.nombre = { contains: search, mode: 'insensitive' };
