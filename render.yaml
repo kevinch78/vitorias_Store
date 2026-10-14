@@ -41,7 +41,6 @@ services:
     rootDir: ./EccormceDeportivo
     buildCommand: npm install && npm run build
     staticPublishPath: ./dist
-    plan: free
     routes:
       - type: rewrite
         source: /*
@@ -49,6 +48,16 @@ services:
     envVars:
       - key: VITE_STORE_WHATSAPP_NUMBER
         value: "573235087561"
+      - key: VITE_API_URL
+        fromService:
+          type: web
+          name: victoria-backend-api
+          property: host
+      - key: VITE_UPLOADS_URL
+        fromService:
+          type: web
+          name: victoria-backend-api
+          property: host
 
 databases:
   # ------------------------------------------------------
