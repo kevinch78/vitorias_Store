@@ -10,17 +10,17 @@ import { FileInterceptor } from '@nestjs/platform-express';
 export class ProductsController {
   constructor(private readonly productsService: ProductsService) {}
 
-  @Get('productos')
+  @Get(['productos', 'products'])
   findAll(@Query() query: QueryProductsDto) {
     return this.productsService.findAll(query);
   }
 
-  @Get('productos/:slug')
+  @Get(['productos/:slug', 'products/:slug'])
   findOne(@Param('slug') slug: string) {
     return this.productsService.findOneBySlug(slug);
   }
 
-  @Post('admin/productos')
+  @Post(['admin/productos', 'admin/products'])
   @UseGuards(JwtAuthGuard)
   @UseInterceptors(FileInterceptor('imagen'))
   create(
@@ -30,7 +30,7 @@ export class ProductsController {
     return this.productsService.create(createProductDto, file);
   }
 
-  @Patch('admin/productos/:id')
+  @Patch(['admin/productos/:id', 'admin/products/:id'])
   @UseGuards(JwtAuthGuard)
   @UseInterceptors(FileInterceptor('imagen'))
   update(
@@ -41,7 +41,7 @@ export class ProductsController {
     return this.productsService.update(id, updateProductDto, file);
   }
 
-  @Delete('admin/productos/:id')
+  @Delete(['admin/productos/:id', 'admin/products/:id'])
   @UseGuards(JwtAuthGuard)
   remove(@Param('id') id: string) {
     return this.productsService.remove(id);
